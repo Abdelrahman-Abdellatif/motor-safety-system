@@ -1,7 +1,12 @@
 #include "clock.h"
 
+
 /* This variable is incremented every 1ms by SysTick interrupt */
 static volatile uint32_t sys_tick_count = 0; // global variable
+
+/* Global variable required by CMSIS/peripherals to know the clock speed.
+ * This fixes the undefined reference error in uart_driver.o */
+uint32_t SystemCoreClock = 16000000; // Default 16MHz HSI clock on reset
 
 void SystemClock_Config(void){
 
@@ -61,9 +66,10 @@ void SystemClock_Config(void){
 	 * STEP E - Set bus prescalers
 	 * AHB = SYSCLK / 1 =84MHz  (HPRE = 0 means divide by 1)
 	 * APB1 = SYSCLK / 2 = 42 MHz (PPRE1 = 4 means divide by 2)
-	 * 			APB1 max is 42 - this is a hardware limit
+	 * APB1 max is 42 - this is a hardware limit
 	 * APB2 = SYSCLK /1 84MHz (PPRE2 = 0 means divide by 1)
 	 * */
+	RCC->CFGR &= ~(RCC_CFGR_HPRE | RCC_CFGR_PPRE1 | RCC_CFGR_PPRE2); // Clear default bits first
 	RCC->CFGR |= RCC_CFGR_HPRE_DIV1		|
 				 RCC_CFGR_PPRE1_DIV2	|
 				 RCC_CFGR_PPRE2_DIV1;
@@ -73,6 +79,7 @@ void SystemClock_Config(void){
 	 * SW bits in RCC->CFGR: 00=HSI, 01=HSE, 10=PLL
 	 * After writing, read SWS bits to confirm the switch happened
 	 * */
+	RCC->CFGR &= ~RCC_CFGR_SW; // Clear system clock switch bits first
 	RCC->CFGR |= RCC_CFGR_SW_PLL;
 	while((RCC->CFGR & RCC_CFGR_SWS) != RCC_CFGR_SWS_PLL);
 
@@ -84,6 +91,11 @@ void SystemClock_Config(void){
 	 * SysTick_Config() is a CMSIS function that does this for us
 	 * */
 	SysTick_Config(84000);
+
+	/* Manually update our global variable so peripherals can fetch the 84MHz speed.
+	 * This replaces the broken SystemCoreClockUpdate() call. */
+	SystemCoreClock = 84000000;
+
 }
 
 /*
@@ -103,4 +115,3 @@ void Delay_ms(uint32_t ms){
 	uint32_t start = GetTick();
 	while ((GetTick() - start) < ms);
 }
-

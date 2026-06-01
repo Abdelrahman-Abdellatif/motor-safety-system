@@ -17,6 +17,7 @@
  */
 
 #include <stdint.h>
+#include <uart_driver.h>
 #include "stm32f4xx.h"
 #include "clock.h"
 #include "gpio_driver.h"
@@ -25,24 +26,23 @@
 int main(void){
 
 	SystemClock_Config();
+	UART_Init(115200);
 
-	GPIO_PinConfig_t led ={
-			.port = GPIOA,
-			.pin	=5,
-			.mode	=GPIO_MODE_OUTPUT,
-			.otype	=GPIO_OTYPE_PUSHPULL,
-			.speed	=GPIO_SPEED_LOW,
-			.pull	=GPIO_PULL_NONE
-	};
+	UART_SendString("System started\r\n");
 
-	GPIO_Init(&led);
+	char line[64];
+	uint32_t counter =0;
+
 	/*everything else will be initialized here later*/
 
 	while(1){
-		GPIO_TogglePin(GPIOA, 5);
-		Delay_ms(500);
-
-		/*Main loop -- will run the state machine later */
+		/*send a syayus message every secound*/
+		UART_SendFormatted("Tick: %lu\r\n", counter++);
+		Delay_ms(1000);
+		/*check if a command arrived from linux*/
+		if (UART_ReadLine(line, sizeof(line))){
+			UART_SendFormatted("Received: %s\r\n", line);
+		}
 	}
 
 }
