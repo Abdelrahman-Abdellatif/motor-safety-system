@@ -16,33 +16,39 @@
  ******************************************************************************
  */
 
-#include <stdint.h>
-#include <uart_driver.h>
 #include "stm32f4xx.h"
 #include "clock.h"
 #include "gpio_driver.h"
+#include "uart_driver.h"
+#include "timer_driver.h"
 
+int main(void)
+{
+    SystemClock_Config();
+    UART_Init(115200);
+    TIM2_Init();
+    TIM3_PWM_Init();
+    TIM4_InputCapture_Init();
 
-int main(void){
+    UART_SendString("Timer driver initialized\r\n");
 
-	SystemClock_Config();
-	UART_Init(115200);
+    /* Sweep servo from 0 to 180 degrees and back */
+    while (1)
+    {
+        /* Sweep left to right: 1000us to 2000us */
+        for (uint16_t pulse = 1000; pulse <= 2000; pulse += 10)
+        {
+            TIM3_SetServoPulse(pulse);
+            Delay_ms(20);
+        }
 
-	UART_SendString("System started\r\n");
+        /* Sweep right to left: 2000us to 1000us */
+        for (uint16_t pulse = 2000; pulse >= 1000; pulse -= 10)
+        {
+            TIM3_SetServoPulse(pulse);
+            Delay_ms(20);
+        }
 
-	char line[64];
-	uint32_t counter =0;
-
-	/*everything else will be initialized here later*/
-
-	while(1){
-		/*send a syayus message every secound*/
-		UART_SendFormatted("Tick: %lu\r\n", counter++);
-		Delay_ms(1000);
-		/*check if a command arrived from linux*/
-		if (UART_ReadLine(line, sizeof(line))){
-			UART_SendFormatted("Received: %s\r\n", line);
-		}
-	}
-
+        UART_SendString("Servo sweep complete\r\n");
+    }
 }
